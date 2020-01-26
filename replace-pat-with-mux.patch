@@ -1,0 +1,278 @@
+diff --git a/examples/main.go b/examples/main.go
+index dbb6301..0024854 100644
+--- a/examples/main.go
++++ b/examples/main.go
+@@ -11,7 +11,7 @@ import (
+ 
+ 	"log"
+ 
+-	"github.com/gorilla/pat"
++	"github.com/gorilla/mux"
+ 	"github.com/markbates/goth"
+ 	"github.com/markbates/goth/gothic"
+ 	"github.com/markbates/goth/providers/amazon"
+@@ -199,40 +199,43 @@ func main() {
+ 
+ 	providerIndex := &ProviderIndex{Providers: keys, ProvidersMap: m}
+ 
+-	p := pat.New()
+-	p.Get("/auth/{provider}/callback", func(res http.ResponseWriter, req *http.Request) {
+-
+-		user, err := gothic.CompleteUserAuth(res, req)
+-		if err != nil {
+-			fmt.Fprintln(res, err)
+-			return
+-		}
+-		t, _ := template.New("foo").Parse(userTemplate)
+-		t.Execute(res, user)
++	r := mux.NewRouter()
++	r.NewRoute().PathPrefix("/auth/{provider}/callback").Methods("GET").HandlerFunc(
++		func(res http.ResponseWriter, req *http.Request) {
++			user, err := gothic.CompleteUserAuth(res, req)
++			if err != nil {
++				fmt.Fprintln(res, err)
++				return
++			}
++			t, _ := template.New("foo").Parse(userTemplate)
++			t.Execute(res, user)
+ 	})
+ 
+-	p.Get("/logout/{provider}", func(res http.ResponseWriter, req *http.Request) {
+-		gothic.Logout(res, req)
+-		res.Header().Set("Location", "/")
+-		res.WriteHeader(http.StatusTemporaryRedirect)
++	r.NewRoute().PathPrefix("/logout/{provider}").Methods("GET").HandlerFunc(
++		func(res http.ResponseWriter, req *http.Request) {
++			gothic.Logout(res, req)
++			res.Header().Set("Location", "/")
++			res.WriteHeader(http.StatusTemporaryRedirect)
+ 	})
+ 
+-	p.Get("/auth/{provider}", func(res http.ResponseWriter, req *http.Request) {
+-		// try to get the user without re-authenticating
+-		if gothUser, err := gothic.CompleteUserAuth(res, req); err == nil {
+-			t, _ := template.New("foo").Parse(userTemplate)
+-			t.Execute(res, gothUser)
+-		} else {
+-			gothic.BeginAuthHandler(res, req)
+-		}
++	r.NewRoute().PathPrefix("/auth/{provider}").Methods("GET").HandlerFunc(
++		func(res http.ResponseWriter, req *http.Request) {
++			// try to get the user without re-authenticating
++			if gothUser, err := gothic.CompleteUserAuth(res, req); err == nil {
++				t, _ := template.New("foo").Parse(userTemplate)
++				t.Execute(res, gothUser)
++			} else {
++				gothic.BeginAuthHandler(res, req)
++			}
+ 	})
+ 
+-	p.Get("/", func(res http.ResponseWriter, req *http.Request) {
+-		t, _ := template.New("foo").Parse(indexTemplate)
+-		t.Execute(res, providerIndex)
++	r.NewRoute().PathPrefix("/").Methods("GET").HandlerFunc(
++		func(res http.ResponseWriter, req *http.Request) {
++			t, _ := template.New("foo").Parse(indexTemplate)
++			t.Execute(res, providerIndex)
+ 	})
+ 	log.Println("listening on localhost:3000")
+-	log.Fatal(http.ListenAndServe(":3000", p))
++	log.Fatal(http.ListenAndServe(":3000", r))
+ }
+ 
+ type ProviderIndex struct {
+diff --git a/go.mod b/go.mod
+index 941bb64..fb1403d 100644
+--- a/go.mod
++++ b/go.mod
+@@ -5,7 +5,6 @@ require (
+ 	github.com/davecgh/go-spew v1.1.1 // indirect
+ 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
+ 	github.com/gorilla/mux v1.6.2
+-	github.com/gorilla/pat v0.0.0-20180118222023-199c85a7f6d1
+ 	github.com/gorilla/sessions v1.1.1
+ 	github.com/jarcoal/httpmock v0.0.0-20180424175123-9c70cfe4a1da
+ 	github.com/lestrrat-go/jwx v0.9.0
+@@ -18,3 +17,5 @@ require (
+ 	golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f // indirect
+ 	google.golang.org/appengine v1.2.0 // indirect
+ )
++
++go 1.13
+diff --git a/go.sum b/go.sum
+index 1ecf8cd..b747245 100644
+--- a/go.sum
++++ b/go.sum
+@@ -10,8 +10,6 @@ github.com/gorilla/context v1.1.1 h1:AWwleXJkX/nhcU9bZSnZoi3h/qGYqQAGhq6zZe/aQW8
+ github.com/gorilla/context v1.1.1/go.mod h1:kBGZzfjB9CEq2AlWe17Uuf7NDRt0dE0s8S51q0aT7Yg=
+ github.com/gorilla/mux v1.6.2 h1:Pgr17XVTNXAk3q/r4CpKzC5xBM/qW1uVLV+IhRZpIIk=
+ github.com/gorilla/mux v1.6.2/go.mod h1:1lud6UwP+6orDFRuTfBEV8e9/aOM/c4fVVCaMa2zaAs=
+-github.com/gorilla/pat v0.0.0-20180118222023-199c85a7f6d1 h1:LqbZZ9sNMWVjeXS4NN5oVvhMjDyLhmA1LG86oSo+IqY=
+-github.com/gorilla/pat v0.0.0-20180118222023-199c85a7f6d1/go.mod h1:YeAe0gNeiNT5hoiZRI4yiOky6jVdNvfO2N6Kav/HmxY=
+ github.com/gorilla/securecookie v1.1.1 h1:miw7JPhV+b/lAHSXz4qd/nN9jRiAFV5FwjeKyCS8BvQ=
+ github.com/gorilla/securecookie v1.1.1/go.mod h1:ra0sb63/xPlUeL+yeDciTfxMRAA+MP+HVt/4epWDjd4=
+ github.com/gorilla/sessions v1.1.1 h1:YMDmfaK68mUixINzY/XjscuJ47uXFWSSHzFbBQM0PrE=
+@@ -20,8 +18,6 @@ github.com/jarcoal/httpmock v0.0.0-20180424175123-9c70cfe4a1da h1:FjHUJJ7oBW4G/9
+ github.com/jarcoal/httpmock v0.0.0-20180424175123-9c70cfe4a1da/go.mod h1:ks+b9deReOc7jgqp+e7LuFiCBH6Rm5hL32cLcEAArb4=
+ github.com/lestrrat-go/jwx v0.9.0 h1:Fnd0EWzTm0kFrBPzE/PEPp9nzllES5buMkksPMjEKpM=
+ github.com/lestrrat-go/jwx v0.9.0/go.mod h1:iEoxlYfZjvoGpuWwxUz+eR5e6KTJGsaRcy/YNA/UnBk=
+-github.com/lestrrat/jwx v0.9.0 h1:sxyUKCQ0KpX4+GPvSu9lAS0tIwpg7F/O8p/HqyZL4ns=
+-github.com/lestrrat/jwx v0.9.0/go.mod h1:Ogdl8bCZz7p5/jj4RY2LQTceY/c+AoTIk9gJY+KP4H0=
+ github.com/markbates/going v1.0.0 h1:DQw0ZP7NbNlFGcKbcE/IVSOAFzScxRtLpd0rLMzLhq0=
+ github.com/markbates/going v1.0.0/go.mod h1:I6mnB4BPnEeqo85ynXIx1ZFLLbtiLHNXVgWeFO9OGOA=
+ github.com/mrjones/oauth v0.0.0-20180629183705-f4e24b6d100c h1:3wkDRdxK92dF+c1ke2dtj7ZzemFWBHB9plnJOtlwdFA=
+diff --git a/providers/intercom/intercom_test.go b/providers/intercom/intercom_test.go
+index df4a063..259d4c3 100644
+--- a/providers/intercom/intercom_test.go
++++ b/providers/intercom/intercom_test.go
+@@ -3,7 +3,7 @@ package intercom_test
+ import (
+ 	"encoding/json"
+ 	"fmt"
+-	"github.com/gorilla/pat"
++	"github.com/gorilla/mux"
+ 	"github.com/markbates/goth"
+ 	"github.com/markbates/goth/providers/intercom"
+ 	"github.com/stretchr/testify/assert"
+@@ -125,11 +125,12 @@ func Test_FetchUnverifiedUser(t *testing.T) {
+ }
+ 
+ func mockIntercomFetchUser(fetchUserPayload *fetchUserPayload, f func(*httptest.Server)) {
+-	p := pat.New()
+-	p.Get("/me", func(res http.ResponseWriter, req *http.Request) {
+-		json.NewEncoder(res).Encode(fetchUserPayload)
++	r := mux.NewRouter()
++	r.NewRoute().PathPrefix("/me").Methods("GET").HandlerFunc(
++		func(res http.ResponseWriter, req *http.Request) {
++			json.NewEncoder(res).Encode(fetchUserPayload)
+ 	})
+-	ts := httptest.NewServer(p)
++	ts := httptest.NewServer(r)
+ 	defer ts.Close()
+ 
+ 	originalUserURL := intercom.UserURL
+diff --git a/providers/twitter/twitter_test.go b/providers/twitter/twitter_test.go
+index 1189328..5fbb3f3 100644
+--- a/providers/twitter/twitter_test.go
++++ b/providers/twitter/twitter_test.go
+@@ -8,7 +8,7 @@ import (
+ 	"os"
+ 	"testing"
+ 
+-	"github.com/gorilla/pat"
++	"github.com/gorilla/mux"
+ 	"github.com/markbates/goth"
+ 	"github.com/mrjones/oauth"
+ 	"github.com/stretchr/testify/assert"
+@@ -102,23 +102,25 @@ func twitterProviderAuthenticate() *Provider {
+ }
+ 
+ func mockTwitter(f func(*httptest.Server)) {
+-	p := pat.New()
+-	p.Get("/oauth/request_token", func(res http.ResponseWriter, req *http.Request) {
+-		fmt.Fprint(res, "oauth_token=TOKEN&oauth_token_secret=SECRET")
++	r := mux.NewRouter()
++	r.NewRoute().PathPrefix("/oauth/request_token").Methods("GET").HandlerFunc(
++		func(res http.ResponseWriter, req *http.Request) {
++			fmt.Fprint(res, "oauth_token=TOKEN&oauth_token_secret=SECRET")
+ 	})
+-	p.Get("/1.1/account/verify_credentials.json", func(res http.ResponseWriter, req *http.Request) {
+-		data := map[string]string{
+-			"name":              "Homer",
+-			"screen_name":       "duffman",
+-			"description":       "Duff rules!!",
+-			"profile_image_url": "http://example.com/image.jpg",
+-			"id_str":            "1234",
+-			"location":          "Springfield",
+-			"email":             "duffman@springfield.com",
+-		}
+-		json.NewEncoder(res).Encode(&data)
++	r.NewRoute().PathPrefix("/1.1/account/verify_credentials.json").Methods("GET").HandlerFunc(
++		func(res http.ResponseWriter, req *http.Request) {
++			data := map[string]string{
++				"name":              "Homer",
++				"screen_name":       "duffman",
++				"description":       "Duff rules!!",
++				"profile_image_url": "http://example.com/image.jpg",
++				"id_str":            "1234",
++				"location":          "Springfield",
++				"email":             "duffman@springfield.com",
++			}
++			json.NewEncoder(res).Encode(&data)
+ 	})
+-	ts := httptest.NewServer(p)
++	ts := httptest.NewServer(r)
+ 	defer ts.Close()
+ 
+ 	originalRequestURL := requestURL
+diff --git a/providers/xero/xero_test.go b/providers/xero/xero_test.go
+index 4735534..9e1d1f2 100644
+--- a/providers/xero/xero_test.go
++++ b/providers/xero/xero_test.go
+@@ -8,7 +8,7 @@ import (
+ 	"os"
+ 	"testing"
+ 
+-	"github.com/gorilla/pat"
++	"github.com/gorilla/mux"
+ 	"github.com/markbates/goth"
+ 	"github.com/mrjones/oauth"
+ 	"github.com/stretchr/testify/assert"
+@@ -94,32 +94,36 @@ func xeroProvider() *Provider {
+ }
+ 
+ func mockXero(f func(*httptest.Server)) {
+-	p := pat.New()
+-	p.Get("/oauth/RequestToken", func(res http.ResponseWriter, req *http.Request) {
+-		fmt.Fprint(res, "oauth_token=TOKEN&oauth_token_secret=SECRET")
++	r := mux.NewRouter()
++	r.NewRoute().PathPrefix("/oauth/RequestToken").Methods("GET").HandlerFunc(
++		func(res http.ResponseWriter, req *http.Request) {
++			fmt.Fprint(res, "oauth_token=TOKEN&oauth_token_secret=SECRET")
+ 	})
+-	p.Get("/oauth/Authorize", func(res http.ResponseWriter, req *http.Request) {
+-		fmt.Fprint(res, "DO NOT USE THIS ENDPOINT")
++	r.NewRoute().PathPrefix("/oauth/Authorize").Methods("GET").HandlerFunc(
++		func(res http.ResponseWriter, req *http.Request) {
++			fmt.Fprint(res, "DO NOT USE THIS ENDPOINT")
+ 	})
+-	p.Get("/oauth/AccessToken", func(res http.ResponseWriter, req *http.Request) {
+-		fmt.Fprint(res, "oauth_token=TOKEN&oauth_token_secret=SECRET")
++	r.NewRoute().PathPrefix("/oauth/AccessToken").Methods("GET").HandlerFunc(
++		func(res http.ResponseWriter, req *http.Request) {
++			fmt.Fprint(res, "oauth_token=TOKEN&oauth_token_secret=SECRET")
+ 	})
+-	p.Get("/api.xro/2.0/Organisation", func(res http.ResponseWriter, req *http.Request) {
+-		apiResponse := APIResponse{
+-			Organisations: []Organisation{
+-				{"Vanderlay Industries", "Vanderlay Industries", "COMPANY", "NZ", "111-11"},
+-			},
+-		}
+-
+-		js, err := json.Marshal(apiResponse)
+-		if err != nil {
+-			fmt.Fprint(res, "Json did not Marshal")
+-		}
+-
+-		res.Write(js)
++	r.NewRoute().PathPrefix("/api.xro/2.0/Organisation").Methods("GET").HandlerFunc(
++		func(res http.ResponseWriter, req *http.Request) {
++			apiResponse := APIResponse{
++				Organisations: []Organisation{
++					{"Vanderlay Industries", "Vanderlay Industries", "COMPANY", "NZ", "111-11"},
++				},
++			}
++
++			js, err := json.Marshal(apiResponse)
++			if err != nil {
++				fmt.Fprint(res, "Json did not Marshal")
++			}
++
++			res.Write(js)
+ 	})
+ 
+-	ts := httptest.NewServer(p)
++	ts := httptest.NewServer(r)
+ 	defer ts.Close()
+ 
+ 	originalRequestURL := requestURL

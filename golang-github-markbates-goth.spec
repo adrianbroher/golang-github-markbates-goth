@@ -22,6 +22,10 @@ Summary:        Package goth provides a simple, clean, and idiomatic way to writ
 License:        MIT
 URL:            %{gourl}
 Source0:        %{gosource}
+# Replace the github.com/gorilla/pat dependency with github.com/gorilla/mux
+# gorilla/pat seems to be unmaintained.  It is also only a convenience wrapper
+# around gorilla/mux, which is also already packaged for Fedora
+Patch0:         replace-pat-with-mux.patch
 
 BuildRequires:  golang(github.com/dgrijalva/jwt-go)
 BuildRequires:  golang(github.com/gorilla/mux)
@@ -44,6 +48,7 @@ BuildRequires:  golang(github.com/stretchr/testify/assert)
 
 %prep
 %goprep
+%patch0 -p1
 
 %install
 %gopkginstall
@@ -58,3 +63,4 @@ BuildRequires:  golang(github.com/stretchr/testify/assert)
 %changelog
 * Sat Jan 25 16:12:08 CET 2020 Marcel Metz <mmetz@adrian-broher.net> - 1.61.0-1
 - Initial package
+- Replace github.com/gorilla/pat dependency with github.com/gorilla/mux
